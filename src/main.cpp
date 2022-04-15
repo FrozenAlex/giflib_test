@@ -21,7 +21,7 @@ int main(int, char **)
 	int error;
 
 	// Open the file
-	GifFileType *gif = DGifOpenFileName("./../gifs/test.gif", &error);
+	GifFileType *gif = DGifOpenFileName("./../gifs/anya.gif", &error);
 
 	int slurpres = DGifSlurp(gif);
 
@@ -77,19 +77,42 @@ int main(int, char **)
 		if (ext != nullptr)
 		{
 			GCBResult = DGifExtensionToGCB(ext->ByteCount, (const GifByteType *)ext->Bytes, &GCB);
+			
+			// disposal handling
+			// if (GCB.DisposalMode == DISPOSE_BACKGROUND)
+			// {
+			// 	for (y = 0; y < frameInfo->Height; ++y)
+			// 	{
+			// 		for (x = 0; x < frameInfo->Width; ++x)
+			// 		{
+			// 		}
+			// 	}
+			// }
+
+			// disposal handling
+			if (GCB.DisposalMode == DISPOSE_PREVIOUS)
+			{
+				for (y = 0; y < frameInfo->Height; ++y)
+				{
+					for (x = 0; x < frameInfo->Width; ++x)
+					{
+					}
+				}
+			}
 		}
 
-		long pixelDataOffset = frameInfo->Top * width + frameInfo->Left;
+		long flippedFrameTop = height - frameInfo->Top - frameInfo->Height;
+		long pixelDataOffset = flippedFrameTop * width + frameInfo->Left;
 		// it's easier to understand iteration from 0 -> value, than it is to understand value -> value
 		for (y = 0; y < frameInfo->Height; ++y)
 		{
 			for (x = 0; x < frameInfo->Width; ++x)
 			{
 				// location within the frame (smaller than the gif)
-				loc = y * frameInfo->Width + x;
+				loc = (frameInfo->Height - y - 1) * frameInfo->Width + x;
 
 				// Transparency
-				if (frame->RasterBits[loc] == ext->Bytes[3] && ext->Bytes[0])
+				if (frame->RasterBits[loc] == ext->Bytes[3] && ext->Bytes[0] && GCB.TransparentColor >=0)
 				{
 					continue;
 				}
@@ -113,22 +136,22 @@ int main(int, char **)
 				// For the first frame x should be 52
 				int tx = locWithinFrame % width; // Correct!
 				// For the first frame y should be 48
-				int ty = locWithinFrame / width; 
+				int ty = locWithinFrame / width;
 
 				// pixelData.get(locWithinFrame) = UnityEngine::Color32(color->Red, color->Green, color->Blue, 0xff);
 
-				
-					(&pixels[locWithinFrame])->red = color->Red;
-					(&pixels[locWithinFrame])->green = color->Green;
-					(&pixels[locWithinFrame])->blue = color->Blue;
-					std::cout << "Drew a pixel at: " << x << ":" << y << " to: "  << tx << ":" << ty << " Loc within: " << locWithinFrame <<"\n";
-			
-
-				
+				(&pixels[locWithinFrame])->red = color->Red;
+				(&pixels[locWithinFrame])->green = color->Green;
+				(&pixels[locWithinFrame])->blue = color->Blue;
+				// std::cout << "Drew a pixel at: " << x << ":" << y << " to: "  << tx << ":" << ty << " Loc within: " << locWithinFrame <<"\n";
 			}
 			// update pixel offset to a new row
 			pixelDataOffset = pixelDataOffset + width;
 		}
+
+		std::ofstream out("demo-rgb-" + std::to_string(frame_id) + ".png", std::ios::binary | std::ios::trunc);
+		TinyPngOut pngout(static_cast<uint32_t>(WIDTH), static_cast<uint32_t>(HEIGHT), out);
+		pngout.write((std::uint8_t *)pixels, static_cast<size_t>(WIDTH * HEIGHT));
 	}
 
 	// get_frame()
